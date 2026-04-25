@@ -191,29 +191,119 @@ relative to the file. Verified with `echo "# experiment" >> ~/.zshrc`
   and KDE complains. Fix: right-click → Unpin. Documented in
   `troubleshooting/kde-discover-broken-launcher.md`.
 
+---
+
+## 2026-04-25 — Session 03: Package management on Arch / CachyOS
+
+Notes saved to `02-package-management/pacman-and-aur.md`.
+
+### Covered
+- **The mental shift.** On Linux, the distro's package manager owns all
+  installed software, together — one tool, one DB, one cryptographic
+  trust chain, one upgrade transaction. On Windows each vendor ships its
+  own installer with its own conventions and bundled libraries. The
+  Linux model wins on disk space, security update propagation,
+  uninstall completeness, and "which package owns this file?" queries.
+  The Linux model loses on per-app upgrade independence — partial
+  upgrades break Arch.
+- **What pacman manages and where.** Configuration in
+  `/etc/pacman.conf` + `/etc/pacman.d/`; sync DBs (per-repo) at
+  `/var/lib/pacman/sync/`; the local DB at `/var/lib/pacman/local/`;
+  the package cache at `/var/cache/pacman/pkg/`. Each has a clear role.
+- **Kai's specific repo stack** (in priority order): `cachyos-v3`,
+  `cachyos-core-v3`, `cachyos-extra-v3`, `cachyos`, `core`, `extra`,
+  `multilib`. The CachyOS v3 repos ship binaries compiled for the
+  x86-64-v3 microarchitecture level (AVX2, BMI2, etc.), which the
+  i7-13650HX supports — this is a primary source of CachyOS's
+  performance reputation. Mainline Arch ships generic 2003-era x86-64
+  binaries.
+- **The five verbs that compose into all real-world commands.** `-S`
+  sync, `-R` remove, `-Q` query local, `-U` install from file, `-F`
+  file-DB query. Modifier flags (`-y` refresh, `-u` upgrade, `-i` info,
+  `-o` owner, `-l` list-files, `-q` quiet, `-s` search) compose with
+  these.
+- **The day-to-day commands**: `sudo pacman -Syu` (update everything),
+  `sudo pacman -S <pkg>` (install), `sudo pacman -Rns <pkg>` (remove +
+  unused deps + config), `pacman -Qi <pkg>` (info), `pacman -Qo <file>`
+  (owner). Read-only ops don't need sudo.
+- **The `-Sy` footgun.** Arch's #1 newcomer trap. Refreshing the DB and
+  installing partially gives you a system with new shared libraries
+  paired with old binaries linked against old shared libraries —
+  "partial upgrade" — which the Arch wiki treats as unsupported.
+  Always `-Syu`, never `-Sy` alone followed by `-S` separately. Muscle
+  memory.
+- **The AUR.** Community-contributed PKGBUILDs (build recipes, not
+  packages). Not official, not signed by Arch, not reviewed by Arch
+  developers. Reading the PKGBUILD before installing is the security
+  habit. AUR helpers (paru, yay) automate the clone → review → build →
+  install flow but don't change the trust model.
+- **paru.** CachyOS's pre-installed AUR helper. `paru -Syu` is the
+  unified upgrade command (covers both repos and installed AUR
+  packages). Build steps run as the regular user; sudo only for the
+  final `pacman -U` install step.
+- **arch-update** is the CachyOS-specific polish layer (from the
+  `cachy-update` package). Wraps `paru -Syu` with pre/post-update
+  hygiene (keyring refresh, `.pacnew` detection, cache pruning,
+  kernel-reboot reminders) and a tray notification icon. Functionally
+  equivalent to `paru -Syu` but with niceties.
+- **CachyOS's Btrfs snapshot safety net.** `snap-pac` (libalpm hook at
+  `/usr/share/libalpm/hooks/05-snap-pac-pre.hook`) auto-snapshots `/`
+  before every pacman transaction. `snapper` manages lifecycle.
+  `limine-snapper-sync` exposes snapshots as bootable entries in the
+  limine boot menu. Rollback workflow on a broken upgrade: reboot →
+  pick previous snapshot in limine → boot the pre-upgrade state →
+  optionally `snapper rollback <id>` to make permanent. This safety
+  net is a major reason CachyOS is gentle for newcomers; it's
+  unavailable on Windows (System Restore is slower/weaker) and
+  unavailable on most Linux distros (you'd set it up manually, and
+  ext4/xfs don't support snapshots).
+- **Decision logged at the end of Session 02 still applies:**
+  installing the `lenovo-legion-laptop` AUR module to fix the battery
+  threshold issue is deferred. Session 03 made the AUR mental model
+  concrete, but didn't change the risk calculus on out-of-tree kernel
+  modules.
+
+### Exploration suggested
+- `pacman -Qq | wc -l`, `pacman -Qqe | wc -l`, `pacman -Qqm | wc -l` —
+  total / explicit / AUR package counts. Expected on this box: 1217 /
+  217 / 0.
+- `pacman -Qi pacman` — full info on the pacman package itself,
+  showing the metadata fields available.
+- `pacman -Qo /usr/bin/git`, `pacman -Qo /etc/pacman.conf`,
+  `pacman -Qo /etc/fstab` — file ownership lookups.
+- `snapper list` — see existing snapshots (at minimum one pair from
+  the bootstrap `arch-update` run).
+
 ### Next up
-- **Session 03 — Package management on Arch/CachyOS.**
-  - What `pacman` does under the hood: the sync database, the local DB at
-    `/var/lib/pacman/`, and where packages come from (repos in
-    `/etc/pacman.conf`).
-  - The core verbs: `-S` sync/install, `-R` remove, `-Q` query, `-U`
-    install from file, `-Syu` full system upgrade (and why you never
-    mix `-Sy` without `-u` — "partial upgrades" are the #1 way to brick
-    an Arch system).
-  - **The AUR** — what it is, what it *isn't* (not an official repo; user
-    contributions with real review responsibility on you), and how
-    `paru`/`yay` wrap `pacman` + `makepkg` for it.
-  - What `arch-update` (which Kai has already run) actually does — it's
-    a CachyOS-specific curated wrapper on top of `pacman -Syu` + AUR
-    helper + system maintenance tasks.
-  - **CachyOS's safety net**: Btrfs snapshots via `snapper` (or
-    `limine-snapper-sync`) taken automatically before pacman transactions.
-    Rollback workflow if an update breaks the system. This is a major
-    reason CachyOS is pleasant for beginners.
-  - Windows contrasts: no unified package manager on Windows 10 (third-
-    party MSI/exe installers per app; Windows Store for UWP; winget later).
-    Linux's unified package-manager-owns-everything model is one of the
-    biggest day-to-day quality-of-life wins.
+- **Session 04 — MkDocs Material site for these lesson notes.**
+  Per the original project plan: now that we have 3 lessons of content
+  (`filesystem-hierarchy.md`, `users-groups-permissions.md`,
+  `pacman-and-aur.md`) plus the daily log and troubleshooting entries,
+  it's time to layer a navigable static site on top. The setup is
+  itself a lesson:
+  - **Python tooling on Arch.** Why you don't `sudo pip install` on
+    modern Arch (PEP 668 / externally-managed environments). The
+    options: `pipx` for isolated CLI app installs (the right answer
+    here), `python -m venv` for project-local virtual environments,
+    or system-wide via pacman when an Arch package exists.
+  - **Installing `mkdocs-material` via `pipx`** so we don't pollute the
+    system Python and we get an isolated, upgradable install.
+  - **Project layout** — `mkdocs.yml`, the `docs/` directory, and how
+    the existing `01-basics/`, `02-package-management/`, etc. structure
+    maps onto it. Decide whether to symlink, copy, or re-root the
+    markdown into `docs/`.
+  - **`mkdocs serve`** — the local dev server with hot reload.
+    Foundational for understanding "edit a file → see the change in
+    the browser" workflows on Linux.
+  - **The Material theme's basics**: navigation config, search,
+    syntax highlighting, dark mode, admonitions (the
+    `!!! note` blocks).
+  - **A `Makefile` or shell helper** for common operations (`make
+    serve`, `make build`, etc.), so we don't have to remember the
+    exact commands. Optional but worth it.
+  - **What to defer**: deploying to GitHub Pages (a separate session
+    when we want the site to be public), navigation polish, custom
+    CSS, plugin ecosystem.
 
 ### Backlog (slot in when ready)
 - **MkDocs Material setup** — likely Session 04, after we have 3–4 lessons.
