@@ -23,8 +23,13 @@ always first. Each entry ends with a **Next up** note for the following session.
   - Wrote `README.md` (human-facing overview).
   - Started this log.
 - Confirmed environment details:
-  - Default login shell is **zsh** (`$SHELL = /usr/bin/zsh`), not fish.
-    CachyOS ships zsh preconfigured with fish-like ergonomics.
+  - Default login shell: **initially claimed to be zsh** based on `echo $SHELL`
+    returning `/usr/bin/zsh`. **This was wrong** — see the 2026-04-25
+    continuation for the discovery. The canonical login shell lives in the
+    last field of `/etc/passwd`, which reported `/bin/fish` all along. The
+    `$SHELL` env var was being set to zsh inside Claude's subprocess, which
+    doesn't reflect what Konsole actually runs. Lesson: `getent passwd <user>`
+    is authoritative for login shell; `$SHELL` is just an env var and can lie.
   - The **usrmerge** is in effect on this system: `/bin`, `/sbin`, `/lib`,
     `/lib64` are all symlinks pointing into `/usr`. (More on why in the lesson.)
 - **Lesson 1 — Linux Filesystem Hierarchy (FHS).**
@@ -43,6 +48,64 @@ always first. Each entry ends with a **Next up** note for the following session.
   markdown as the source of truth, but generate a navigable site with
   **MkDocs + Material theme** once we have 3–4 lessons of content
   (target: around Session 04). Until then, plain `.md` files only.
+
+### 2026-04-25 — Session 01 continued: git identity + SSH to GitHub
+
+- **Configured global git identity** — `git config --global user.name "kaimikan"`
+  and `user.email "kaimikan@protonmail.com"`. Writes to `~/.gitconfig`; applies
+  to every repo on this machine. Same command on Linux as on Windows — git
+  itself is cross-platform and identity setup is not an OS-level concern.
+- **Generated an `ed25519` SSH keypair** at `~/.ssh/id_ed25519` (+ `.pub`).
+  - First attempt via Claude's `!` tool silently produced a key with an
+    empty passphrase. Root cause: ssh-keygen's passphrase-source fallback
+    chain is (1) TTY, (2) `$SSH_ASKPASS` program, (3) silent empty. Claude's
+    `!` has no TTY; CachyOS doesn't ship a default askpass binary
+    (`/usr/lib/ssh/ssh-askpass` missing); so the key was generated with no
+    encryption at rest. Fixed by running `ssh-keygen -p -f ~/.ssh/id_ed25519`
+    in a real Konsole, which re-encrypts the existing private key with a new
+    passphrase. The keypair's identity (public key, fingerprint) stays the
+    same after `-p`.
+  - **Takeaway:** interactive commands (passphrase prompts, `vim`, `top`,
+    anything reading stdin) need a real terminal. Run them in Konsole,
+    not via Claude's `!`.
+- **Attempted an ssh-agent setup** as a `systemd --user` service with a
+  `~/.zshenv` env var. It didn't work because the login shell is fish, not
+  zsh — so `.zshenv` was never read. Rolled the attempt back entirely: unit
+  file (`~/.config/systemd/user/ssh-agent.service`), enable symlink, and
+  `~/.zshenv` all removed. Keypair kept. Agent setup deferred to its own
+  session when the per-push passphrase prompt actually starts to hurt
+  (see Backlog).
+- **Registered the public key with GitHub** (Settings → SSH and GPG keys).
+  Verified with `ssh -T git@github.com` → "Hi kaimikan! You've successfully
+  authenticated, but GitHub does not provide shell access." (The "but..." is
+  expected — GitHub doesn't hand out shells, only git-protocol access.)
+  First-connection TOFU prompt: GitHub's ED25519 fingerprint matched the
+  published one at docs.github.com/../githubs-ssh-key-fingerprints.
+- **Created the GitHub repo** `github.com/kaimikan/linux-learning`
+  (SSH URL: `git@github.com:kaimikan/linux-learning.git`), renamed local
+  branch `master` → `main` (`git branch -M main`) to match GitHub's modern
+  default, added the remote (`git remote add origin ...`), and pushed
+  (`git push -u origin main`). Push succeeded: 12 objects, 13.73 KiB, branch
+  tracking set. `-u` / `--set-upstream` recorded `origin/main` as the
+  tracking ref for local `main`, so future bare `git push`/`git pull` know
+  what to talk to.
+
+### Retrospective on Session 01
+
+- **Worked well:** FHS tour (mental models landed, exploration commands run),
+  git identity inline, SSH key generation and GitHub push end-to-end.
+- **Didn't go well:** Claude overcomplicated the SSH setup by reaching for a
+  systemd-user ssh-agent unit when simple per-session passphrase prompts
+  were fine for now. It also dismissed the session's starting system context
+  (which reported fish as the shell) based on one misleading `$SHELL`
+  readback and burned time on zsh config that never ran. Kai had to push
+  back twice (on deferring SSH setup, and on the agent complexity) to steer
+  back to minimum-viable.
+- **Rules captured as a result** (in Claude's memory, will apply going forward):
+  - Don't dismiss conflicting system signals — reconcile them.
+  - Don't over-defer small familiar tasks to the backlog; do them inline.
+  - Commit at natural session boundaries in this repo.
+  - No Claude/Anthropic attribution trailer in commit messages (global pref).
 
 ### Next up
 - **Session 02 — Users, groups, permissions, and `sudo`.**
