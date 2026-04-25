@@ -62,3 +62,12 @@ always first. Each entry ends with a **Next up** note for the following session.
   Wayland vs X11 session, PRIME offloading for hybrid graphics.
 - **Bluetooth peripherals** — pairing the Logitech Pebble 2 Combo,
   `bluetoothctl`, KDE's Bluetooth applet, persistence across reboots.
+- **ssh-agent / credential-helpers on Linux** — not a Windows analogue Kai
+  is familiar with. Covers: why an agent exists (decrypted keys in memory,
+  passphrase typed once per session), the options on Arch (`ssh-agent` as
+  a systemd user service, `gpg-agent` with SSH support, KDE's KWallet +
+  `ksshaskpass` for graphical prompts, the `keychain` helper), tradeoffs
+  between them, and picking one. Deferred until Kai has felt the "type
+  passphrase on every push" friction enough to know which tradeoffs matter
+  to him. When we do it, drive from the Arch Wiki "SSH keys" page and let
+  Kai run every command in Konsole — no Claude `!` shortcuts.
