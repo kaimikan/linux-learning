@@ -174,6 +174,23 @@ access per category; which category applies depends on who you are
 relative to the file. Verified with `echo "# experiment" >> ~/.zshrc`
 (succeeds) vs `echo "# experiment" >> /etc/passwd` (permission denied).
 
+### Side findings during Session 02 (recorded in `troubleshooting/`)
+- **Battery charge threshold on LOQ 15IRX10.** KDE's "Limit the maximum
+  battery charge" toggle is a no-op on this hardware — the standard
+  kernel `charge_control_*` sysfs files don't exist for BAT1, and the
+  LOQ BIOS doesn't expose a Conservation Mode option either. The fix
+  path is the AUR `lenovo-legion-laptop` out-of-tree kernel module, but
+  Kai opted to skip it (out-of-tree modules on rolling-release Arch can
+  break across kernel updates; the laptop is mostly stationary at home,
+  so battery aging is acceptable for now). Documented in
+  `troubleshooting/battery-charge-threshold-loq15irx10.md` for revisit
+  when either a future kernel adds support or Kai changes his mind.
+- **Broken KDE Discover taskbar launcher.** CachyOS ships a default
+  Plasma panel that includes a Discover icon, but does not install the
+  Discover package — so the launcher points at a missing `.desktop` file
+  and KDE complains. Fix: right-click → Unpin. Documented in
+  `troubleshooting/kde-discover-broken-launcher.md`.
+
 ### Next up
 - **Session 03 — Package management on Arch/CachyOS.**
   - What `pacman` does under the hood: the sync database, the local DB at
