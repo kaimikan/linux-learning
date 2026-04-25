@@ -107,15 +107,96 @@ always first. Each entry ends with a **Next up** note for the following session.
   - Commit at natural session boundaries in this repo.
   - No Claude/Anthropic attribution trailer in commit messages (global pref).
 
+---
+
+## 2026-04-25 — Session 02: Users, groups, permissions, and `sudo`
+
+Notes saved to `01-basics/users-groups-permissions.md`.
+
+### Covered
+- **The mental model.** Linux security = UID + GID + 9 rwx bits. Simpler
+  than Windows ACLs (which attach an ordered rule list to every securable
+  object). Linux does have POSIX ACLs via `setfacl`/`getfacl` but they're
+  the exception, not the default.
+- **The three bits, and how they differ for files vs directories.**
+  For a directory: `r` = list entries, `w` = add/delete entries (not
+  modify the file's content), `x` = traverse (`cd` into). The directory
+  `x` vs `r` distinction is the #1 source of "why can't I touch this
+  file" confusion. Deleting a file requires `w` on its *parent directory*,
+  not on the file itself.
+- **First-match-wins evaluation.** Owner → group → other, not cumulative.
+  If the owner triplet denies you, that's final — even if group would
+  grant it. Root (UID 0) bypasses the check entirely.
+- **Reading `ls -l` output.** Type char + 3 triplets of `rwx`, then owner,
+  group, size, mtime, path.
+- **Octal notation.** `r=4 w=2 x=1`. The four common modes to memorize:
+  `600` (private files like SSH keys), `644` (normal data), `700` (private
+  dirs like `~/.ssh`), `755` (executables, most dirs).
+- **`chmod`** — symbolic form (`u+x`, `go-w`) for tweaks, octal form for
+  known states. **`chmod -R 777` is the classic footgun**: it masks
+  ownership problems, marks data files executable, and breaks SSH (OpenSSH
+  refuses to use world-writable keys). Fix ownership with `chown` or add
+  yourself to the right group instead.
+- **`chown`** — needs `sudo`. Syntaxes: `chown user file`,
+  `chown user:group file`, `chown :group file`. `chown -R` as root on the
+  wrong path is catastrophic — double-check targets.
+- **Root vs sudo.** Root UID 0 bypasses all checks. On CachyOS the root
+  account has no login password set by default; admin is via `sudo`.
+  `sudo` elevates one command at a time (contrast UAC, which elevates a
+  whole process). Gate on Arch is membership in the `wheel` group,
+  defined in `/etc/sudoers` (`%wheel ALL=(ALL:ALL) ALL`). Debian/Ubuntu
+  use the `sudo` group instead — same idea, different name.
+- **Groups on this system.** 11 supplementary groups from `id`:
+  `kaimikan` (user-private group, default for new files), `wheel` (sudo),
+  `video`/`audio` (direct device access), `network` (NetworkManager),
+  `nopasswdlogin` (CachyOS/SDDM autologin), plus legacy ones.
+- **`usermod -aG` vs `usermod -G` footgun.** Always `-aG` to append. Bare
+  `-G` *replaces* supplementary groups, which can drop you from `wheel`
+  and lock you out of sudo. Recovery requires rescue boot.
+
+### Exploration
+- `id` — confirmed UID/GID/groups listing matches the lesson.
+- `ls -l /etc/passwd /etc/shadow /etc/sudoers /etc/group` — saw the
+  permission patterns: `passwd` and `group` are `644` (world-readable
+  name-mapping files), `shadow` is `600` (root-only, password hashes),
+  `sudoers` is `440` (read-only even for its owner — edit via `visudo`).
+- `cat /etc/shadow` as regular user → `Permission denied`, as expected.
+- `stat ~/.zshrc` vs `stat /etc/passwd` — both `0644/-rw-r--r--`, but
+  different owners (`kaimikan` vs `root`). This led to the key insight
+  below.
+
+### Key insight that clicked this session
+Same mode string ≠ same effective access. `~/.zshrc` and `/etc/passwd`
+are both `0644`, but Kai has `rw-` on his zshrc (he's the owner → owner
+triplet applies) and only `r--` on `/etc/passwd` (he's not owner, not in
+group root → "other" triplet applies). The mode describes *potential*
+access per category; which category applies depends on who you are
+relative to the file. Verified with `echo "# experiment" >> ~/.zshrc`
+(succeeds) vs `echo "# experiment" >> /etc/passwd` (permission denied).
+
 ### Next up
-- **Session 02 — Users, groups, permissions, and `sudo`.**
-  - The Unix permission model (`rwx`, owner/group/other, octal notation).
-  - How `chmod` and `chown` work; when and why to use each.
-  - The `root` user vs `sudo`: why you almost never log in as root.
-  - Kai's user, default groups (`wheel`, `users`, `video`, etc.), and what
-    each group grants.
-  - Contrast with Windows ACLs, UAC, and Administrator accounts.
-  - Safety: why `chmod -R 777` is the classic footgun and what to do instead.
+- **Session 03 — Package management on Arch/CachyOS.**
+  - What `pacman` does under the hood: the sync database, the local DB at
+    `/var/lib/pacman/`, and where packages come from (repos in
+    `/etc/pacman.conf`).
+  - The core verbs: `-S` sync/install, `-R` remove, `-Q` query, `-U`
+    install from file, `-Syu` full system upgrade (and why you never
+    mix `-Sy` without `-u` — "partial upgrades" are the #1 way to brick
+    an Arch system).
+  - **The AUR** — what it is, what it *isn't* (not an official repo; user
+    contributions with real review responsibility on you), and how
+    `paru`/`yay` wrap `pacman` + `makepkg` for it.
+  - What `arch-update` (which Kai has already run) actually does — it's
+    a CachyOS-specific curated wrapper on top of `pacman -Syu` + AUR
+    helper + system maintenance tasks.
+  - **CachyOS's safety net**: Btrfs snapshots via `snapper` (or
+    `limine-snapper-sync`) taken automatically before pacman transactions.
+    Rollback workflow if an update breaks the system. This is a major
+    reason CachyOS is pleasant for beginners.
+  - Windows contrasts: no unified package manager on Windows 10 (third-
+    party MSI/exe installers per app; Windows Store for UWP; winget later).
+    Linux's unified package-manager-owns-everything model is one of the
+    biggest day-to-day quality-of-life wins.
 
 ### Backlog (slot in when ready)
 - **MkDocs Material setup** — likely Session 04, after we have 3–4 lessons.
