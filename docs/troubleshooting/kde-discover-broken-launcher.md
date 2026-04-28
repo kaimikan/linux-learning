@@ -1,0 +1,1 @@
+../../troubleshooting/kde-discover-broken-launcher.md

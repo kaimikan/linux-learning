@@ -274,8 +274,109 @@ Notes saved to `02-package-management/pacman-and-aur.md`.
 - `snapper list` — see existing snapshots (at minimum one pair from
   the bootstrap `arch-update` run).
 
+---
+
+## 2026-04-28 — Session 04: MkDocs Material site + a clickable launcher
+
+The lesson is the system itself this time — no separate `.md` reference.
+The configuration files (`mkdocs.yml`, `serve.sh`, `docs/` symlinks) are
+the artifact, and `02-package-management/pacman-and-aur.md` covered the
+pipx prerequisites.
+
+### Covered
+
+- **Static site generators, conceptually.** Markdown source → HTML/CSS/JS
+  output. `mkdocs build` produces a static `site/` once; `mkdocs serve`
+  runs a local web server + file watcher for the authoring loop. Output
+  is just files — deploy anywhere or open with `file://`.
+- **Python tooling on modern Linux: PEP 668.** Arch (and Fedora/Debian/
+  Ubuntu) mark the system Python as "externally managed." `sudo pip
+  install` is blocked by default to prevent pip and pacman from
+  clobbering each other's files. The four right ways to install Python
+  software now: `pacman -S python-X` (system), `pipx install <cli>`
+  (isolated CLIs), `python -m venv` (project-local dev), or as a last
+  resort `pip --break-system-packages` (don't).
+- **`pipx` mechanics.** Installs each CLI tool into its own venv at
+  `~/.local/share/pipx/venvs/<name>/`, and exposes the entry-point
+  scripts as symlinks in `~/.local/bin/`. No system pollution; one venv
+  per app; clean upgrades and removals.
+- **The `pipx install` + `pipx inject` pattern for CLI + plugins.**
+  `mkdocs-material` is a *theme* (a library), not a CLI. The first
+  attempt — `pipx install mkdocs-material` — correctly failed because
+  pipx's mental model is "one CLI per venv." The right pattern:
+  `pipx install mkdocs` (creates the CLI venv) followed by
+  `pipx inject mkdocs mkdocs-material` (adds the theme into the same
+  venv). Cleaner than `--include-deps` which would dump 8 unrelated
+  little CLIs into `~/.local/bin/`.
+- **Project layout decision.** `docs/` directory with **symlinks**
+  pointing at the canonical lesson files in their numbered dirs.
+  Source of truth stays where CLAUDE.md declared it; the published
+  site is explicitly the set of symlinks in `docs/`. mkdocs follows
+  symlinks correctly; git tracks them as 1-line files. No content
+  duplication.
+- **`mkdocs.yml`** — site metadata, the Material theme with light/dark
+  toggle, navigation tree, and a curated set of `markdown_extensions`
+  (`admonition`, `pymdownx.highlight`, `pymdownx.superfences`,
+  `pymdownx.tasklist`, etc.). Each setting is commented inline so the
+  config explains itself.
+- **`serve.sh`** — committed shell script that `cd`'s to its own
+  directory (so it works regardless of where it's invoked from),
+  optionally launches the browser via `xdg-open` if `--open` is passed,
+  and `exec`s `mkdocs serve` so Ctrl+C reaches the server cleanly.
+  Made executable with `chmod +x` (callback to Session 02 — the `x`
+  bit on a file is the difference between data and program).
+- **The freedesktop `.desktop` file** at
+  `~/.local/share/applications/linux-learning-docs.desktop` — KDE's
+  app launcher / Krunner / pinnable taskbar icon. Lives outside the
+  repo because it has machine-specific absolute paths. The mechanism
+  is the same as the broken Discover launcher we found in Session 02
+  — but pointed at a script that exists, with the working directory
+  set, and Konsole's `--hold` flag so error output doesn't vanish.
+  Launchable via Alt+Space → "Linux Learning" → Enter, or pinned to
+  the taskbar for one-click access.
+- **`.gitignore`** added — `site/` (build output) and the usual
+  Python/editor/OS noise.
+
+### Verified
+- `mkdocs build` succeeds in <1s; `site/` is ~3MB (mostly Material's
+  theme assets and the search index).
+- `mkdocs serve` reachable at `http://127.0.0.1:8000/` with the full
+  navigation, search, and dark/light toggle working.
+- Live-reload loop: edit a `.md` → mkdocs detects → rebuilds → browser
+  auto-refreshes. The authoring loop for everything that follows.
+- The `.desktop` file passes `desktop-file-validate`, appears in
+  Krunner, can be pinned to the taskbar.
+
 ### Next up
-- **Session 04 — MkDocs Material site for these lesson notes.**
+
+- **Session 05 — Shells: fish, zsh, bash, and the startup-file maze.**
+  The natural next topic after we got bitten by the shell mismatch
+  during the SSH session. Kai's login shell is fish (per `/etc/passwd`),
+  CachyOS pre-configured it with sensible defaults, but most of the
+  Linux world's tutorials and Stack Overflow answers assume bash/zsh.
+  Worth a session that:
+  - Names the shells, what each is, and the historical context (sh →
+    ksh → bash → zsh → fish lineage).
+  - **Where fish breaks bash compatibility** — the things that bite:
+    no `$$` (use `$fish_pid`), no `&&`/`||` traditionally (uses `; and
+    ; or` historically though `&&` and `||` work in fish 3+), no
+    `export` (uses `set -gx`), different command substitution
+    (`(command)` not `$(command)`), no heredocs (`<<EOF`), arrays
+    behave differently. Building a mental "translation table" so
+    bash-targeted advice becomes copy-able.
+  - **The startup file maze.** For fish: `config.fish` vs `conf.d/`;
+    universal vs global vs local variables; `fish_user_paths`. For
+    zsh: `.zshenv` vs `.zprofile` vs `.zshrc` vs `.zlogin` (this is
+    what we tripped on in Session 01).
+  - **What CachyOS configured** in `/usr/share/cachyos-fish-config/`.
+  - **When (if ever) to switch shells**: keeping fish for daily,
+    zsh/bash for scripting, and how `chsh` works.
+
+### Backlog (slot in when ready)
+- **Deploy the MkDocs site to GitHub Pages.** Add a workflow at
+  `.github/workflows/deploy-docs.yml` that runs `mkdocs build` on push
+  to `main` and publishes `site/` to the `gh-pages` branch. Also a
+  natural pairing with a brief "GitHub Actions, conceptually" lesson.
   Per the original project plan: now that we have 3 lessons of content
   (`filesystem-hierarchy.md`, `users-groups-permissions.md`,
   `pacman-and-aur.md`) plus the daily log and troubleshooting entries,

@@ -1,0 +1,17 @@
+# MkDocs build output. Regenerated from the markdown sources by `mkdocs build`
+# or `mkdocs serve` — never edit by hand, never commit.
+/site/
+
+# Python bytecode (in case anyone ever runs Python scripts in this repo).
+__pycache__/
+*.pyc
+
+# Editor / IDE detritus that occasionally sneaks in.
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS-specific noise.
+.DS_Store
+Thumbs.db

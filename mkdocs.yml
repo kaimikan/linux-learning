@@ -1,0 +1,92 @@
+site_name: Linux Learning
+site_description: Kai's personal journal switching from Windows to Linux on CachyOS.
+site_author: Kai
+
+# Source files (symlinks pointing at the canonical markdown in the numbered dirs).
+docs_dir: docs
+# Build output directory (gitignored).
+site_dir: site
+# Don't fail the build if this is changed; URLs are stable.
+use_directory_urls: true
+
+theme:
+  name: material
+  features:
+    - navigation.instant      # SPA-style page swaps without a full reload
+    - navigation.tracking     # update the URL anchor as you scroll a page
+    - navigation.sections     # render top-level nav entries as section headers
+    - navigation.indexes      # allow "Section: README.md" shortcut entries
+    - navigation.top          # back-to-top floating button
+    - search.suggest          # search box autocomplete
+    - search.highlight        # highlight matched terms in the rendered page
+    - content.code.copy       # copy-to-clipboard button on code blocks
+  palette:
+    # Light scheme (default if the OS has light mode preference)
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark scheme
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+
+# Wires up the GitHub icon in the header (top-right of the rendered site).
+repo_url: https://github.com/kaimikan/linux-learning
+repo_name: kaimikan/linux-learning
+
+markdown_extensions:
+  # Admonitions: !!! note "title" / !!! warning blocks
+  - admonition
+  # Inline HTML attributes: { .class #id key=value }
+  - attr_list
+  # Allows markdown inside HTML blocks
+  - md_in_html
+  # GitHub-flavored markdown tables
+  - tables
+  # Auto-generate per-page tables of contents and anchor links
+  - toc:
+      permalink: true
+  # Collapsible details/summary blocks (for "show solution" patterns)
+  - pymdownx.details
+  # Better syntax highlighting with line numbers
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  # `inline code` highlighting
+  - pymdownx.inlinehilite
+  # Embed file content with --8<-- "path"
+  - pymdownx.snippets
+  # Triple-backtick fenced code blocks with extra features
+  - pymdownx.superfences
+  # ===Tabs=== inside content
+  - pymdownx.tabbed:
+      alternate_style: true
+  # Task list checkboxes
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Daily log: daily-log.md
+  - Basics:
+    - Filesystem hierarchy: 01-basics/filesystem-hierarchy.md
+    - Users, groups & permissions: 01-basics/users-groups-permissions.md
+  - Package management:
+    - pacman & the AUR: 02-package-management/pacman-and-aur.md
+  - Troubleshooting:
+    - Battery threshold (LOQ 15IRX10): troubleshooting/battery-charge-threshold-loq15irx10.md
+    - KDE Discover launcher: troubleshooting/kde-discover-broken-launcher.md
