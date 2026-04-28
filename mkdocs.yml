@@ -82,11 +82,14 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Daily log: daily-log.md
+  - Lesson roadmap: lesson-roadmap.md
   - Basics:
     - Filesystem hierarchy: 01-basics/filesystem-hierarchy.md
     - Users, groups & permissions: 01-basics/users-groups-permissions.md
   - Package management:
     - pacman & the AUR: 02-package-management/pacman-and-aur.md
+  - Shell:
+    - Shells & startup files: 03-shell/shells-and-startup-files.md
   - Troubleshooting:
     - Battery threshold (LOQ 15IRX10): troubleshooting/battery-charge-threshold-loq15irx10.md
     - KDE Discover launcher: troubleshooting/kde-discover-broken-launcher.md

@@ -347,36 +347,83 @@ pipx prerequisites.
 - The `.desktop` file passes `desktop-file-validate`, appears in
   Krunner, can be pinned to the taskbar.
 
+---
+
+## 2026-04-28 — Session 05: Shells: fish, zsh, bash, and the startup-file maze
+
+Notes saved to `03-shell/shells-and-startup-files.md`.
+
+### Covered
+- **What a shell actually is.** A userland program that reads commands
+  and runs them. Not part of the kernel, not part of the OS in any
+  meaningful sense. The kernel's only contract: at login, exec the
+  program named in the user's `/etc/passwd` last field. Everything else
+  is "an app you happen to run a lot." This is foundationally different
+  from Windows where `cmd.exe` and `powershell.exe` ship as part of the
+  OS.
+- **Shell lineage.** sh (1977) → ksh (1983) → bash (1989) → zsh (1990)
+  → fish (2005). Two camps: sh / bash / zsh are POSIX-ish and share
+  most syntax; fish *intentionally* broke POSIX compatibility for
+  cleaner defaults and out-of-the-box autosuggestions/highlighting.
+- **The three "shell" contexts.** Login shell (set in `/etc/passwd`),
+  interactive shell (what your terminal launches), script shell (set
+  by the shebang). They can all be different. Concrete example from
+  this very project: login = fish, interactive = fish, but
+  `./serve.sh` runs in bash because of its `#!/usr/bin/env bash`
+  shebang. Resolves the "what shell am I in?" confusion conclusively.
+- **Where fish breaks bash compatibility** — the practical translation
+  table: `set -gx X y` (not `export X=y`), `(cmd)` (not `$(cmd)`),
+  `$fish_pid` (not `$$`), `$status` (not `$?`), `for ... end` (not
+  `for ... do ... done`), no heredocs, abbreviations as a strict
+  upgrade over aliases (`abbr ll 'ls -la'` shows the expansion as you
+  type). The practical shortcut: for multi-line bash advice, save it
+  to a file with `#!/usr/bin/env bash`, `chmod +x`, run from fish.
+- **Startup file order, per shell:**
+  - **Fish:** system `config.fish` → `vendor_conf.d/*` → `/etc/fish/conf.d/*` →
+    `~/.config/fish/conf.d/*.fish` → `~/.config/fish/config.fish` →
+    functions on demand. Pattern: one file per concern in `conf.d/`.
+  - **Zsh:** `.zshenv` (every invocation, including scripts) →
+    `.zprofile` (login only, pre-zshrc) → `.zshrc` (interactive only) →
+    `.zlogin` (login only, post-zshrc) → `.zlogout` (login exit). Env
+    vars belong in `.zshenv`. The Session 01 mistake (putting
+    `SSH_AUTH_SOCK` in `~/.zshenv` for a fish login shell) is now
+    obvious in retrospect.
+  - **Bash:** fragmented enough that the standard pattern is to source
+    `~/.bashrc` from `~/.bash_profile`.
+- **The above-shell escape hatch:** `~/.config/environment.d/<topic>.conf`
+  with plain `KEY=VALUE` lines. systemd's PAM hook loads these into the
+  user session at login, so every program — every shell, every Konsole
+  tab, every GUI app — inherits them. This is what we *should* have
+  used for `SSH_AUTH_SOCK` in Session 01.
+- **What CachyOS pre-configured in `/usr/share/cachyos-fish-config/`:**
+  the `fish_greeting` override that calls `fastfetch` (the system info
+  banner you see in new tabs); `MANPAGER` piping man pages through
+  `bat` for syntax highlighting; the `__done` plugin notifications
+  with a 10-second threshold; `~/.local/bin` PATH addition; classic
+  `!!` and `!$` history shortcuts implemented via custom fish
+  functions.
+- **`chsh` to change login shells**, with the `/etc/shells` whitelist.
+  But the right answer for now: **stay on fish for interactive use,
+  write scripts with `#!/usr/bin/env bash` shebangs, don't switch.**
+  Fish's bash incompatibility matters at script time, and the shebang
+  takes care of that.
+
+### Other Session 05 deliverables
+- **Lesson roadmap split out** to `lesson-roadmap.md` at the repo root.
+  Captures candidate future sessions in three tiers (foundational
+  next-picks; medium-term; hardware/security/niche). Each entry lists
+  what would be covered, why it matters, and any trigger event.
+  Replaces the ad-hoc Backlog section that had been growing in this
+  log. Going forward: roadmap is the forward-looking list; daily-log
+  records what shipped.
+
 ### Next up
 
-- **Session 05 — Shells: fish, zsh, bash, and the startup-file maze.**
-  The natural next topic after we got bitten by the shell mismatch
-  during the SSH session. Kai's login shell is fish (per `/etc/passwd`),
-  CachyOS pre-configured it with sensible defaults, but most of the
-  Linux world's tutorials and Stack Overflow answers assume bash/zsh.
-  Worth a session that:
-  - Names the shells, what each is, and the historical context (sh →
-    ksh → bash → zsh → fish lineage).
-  - **Where fish breaks bash compatibility** — the things that bite:
-    no `$$` (use `$fish_pid`), no `&&`/`||` traditionally (uses `; and
-    ; or` historically though `&&` and `||` work in fish 3+), no
-    `export` (uses `set -gx`), different command substitution
-    (`(command)` not `$(command)`), no heredocs (`<<EOF`), arrays
-    behave differently. Building a mental "translation table" so
-    bash-targeted advice becomes copy-able.
-  - **The startup file maze.** For fish: `config.fish` vs `conf.d/`;
-    universal vs global vs local variables; `fish_user_paths`. For
-    zsh: `.zshenv` vs `.zprofile` vs `.zshrc` vs `.zlogin` (this is
-    what we tripped on in Session 01).
-  - **What CachyOS configured** in `/usr/share/cachyos-fish-config/`.
-  - **When (if ever) to switch shells**: keeping fish for daily,
-    zsh/bash for scripting, and how `chsh` works.
-
-### Backlog (slot in when ready)
-- **Deploy the MkDocs site to GitHub Pages.** Add a workflow at
-  `.github/workflows/deploy-docs.yml` that runs `mkdocs build` on push
-  to `main` and publishes `site/` to the `gh-pages` branch. Also a
-  natural pairing with a brief "GitHub Actions, conceptually" lesson.
+Open. Pick from `lesson-roadmap.md` at the start of the next session.
+Strong candidates from Tier 1: **text editor**, **processes/systemd**,
+**networking basics**, **file manipulation deeper**, or **shell
+scripting basics** (which would build directly on this session). Any
+of those is a sensible next step.
   Per the original project plan: now that we have 3 lessons of content
   (`filesystem-hierarchy.md`, `users-groups-permissions.md`,
   `pacman-and-aur.md`) plus the daily log and troubleshooting entries,
